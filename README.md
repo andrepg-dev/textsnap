@@ -80,7 +80,7 @@ Launch at login turns on automatically the first time the app runs, so TextSnap 
 Feedback in the menu bar:
 
 - **Spinner**: the region was captured and the text is being read (usually under a second).
-- **✓** and a short *Tink* sound: the text was copied.
+- **✓** and the ⌘⇧4 shutter sound: the text was copied.
 - **⚠** and a *Basso* sound: no text was found (see [troubleshooting](docs/troubleshooting.md#the-icon-flashes--and-nothing-is-copied)).
 
 ## Configure

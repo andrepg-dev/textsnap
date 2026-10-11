@@ -63,9 +63,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func show(_ outcome: CaptureCoordinator.Outcome) {
         switch outcome {
         case .copied:
-            flash(.success, sound: "Tink")
+            flash(.success, sound: FeedbackSound.copied)
         case .noTextFound, .failed:
-            flash(.warning, sound: "Basso")
+            flash(.warning, sound: FeedbackSound.failed)
         case .permissionRequired:
             display(.idle)
             showPermissionAlert()
@@ -174,8 +174,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
     }
 
-    private func flash(_ indicator: Indicator, sound: NSSound.Name) {
-        NSSound(named: sound)?.play()
+    private func flash(_ indicator: Indicator, sound: NSSound?) {
+        sound?.play()
         display(indicator)
         feedbackTask?.cancel()
         feedbackTask = Task {
