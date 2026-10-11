@@ -6,10 +6,10 @@
 # A stable certificate keeps the app's designated requirement identical across builds.
 set -euo pipefail
 
-NAME="${1:-TextSnap Local Signing}"
-KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
+source "$(dirname "$0")/config.sh"
+NAME="${1:-$SIGNING_IDENTITY}"
 
-if security find-certificate -c "$NAME" "$KEYCHAIN" >/dev/null 2>&1; then
+if security find-certificate -c "$NAME" "$LOGIN_KEYCHAIN" >/dev/null 2>&1; then
     echo "Identity '$NAME' already exists"
     exit 0
 fi
@@ -27,5 +27,5 @@ PASSWORD="$(uuidgen)"
 /usr/bin/openssl pkcs12 -export -inkey "$WORK/key.pem" -in "$WORK/cert.pem" \
     -name "$NAME" -passout "pass:$PASSWORD" -out "$WORK/identity.p12"
 
-security import "$WORK/identity.p12" -k "$KEYCHAIN" -P "$PASSWORD" -T /usr/bin/codesign
+security import "$WORK/identity.p12" -k "$LOGIN_KEYCHAIN" -P "$PASSWORD" -T /usr/bin/codesign
 echo "Created identity '$NAME'"

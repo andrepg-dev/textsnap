@@ -4,15 +4,13 @@
 # Ad-hoc builds lose the Screen Recording grant on every rebuild; run setup-signing.sh once.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="TextSnap"
+source "$(dirname "$0")/config.sh"
 APP="$ROOT/build/$APP_NAME.app"
-LOCAL_IDENTITY="TextSnap Local Signing"
 
 if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
     IDENTITY="$CODESIGN_IDENTITY"
-elif security find-certificate -c "$LOCAL_IDENTITY" >/dev/null 2>&1; then
-    IDENTITY="$LOCAL_IDENTITY"
+elif security find-certificate -c "$SIGNING_IDENTITY" "$LOGIN_KEYCHAIN" >/dev/null 2>&1; then
+    IDENTITY="$SIGNING_IDENTITY"
 else
     echo "warning: no stable signing identity; run scripts/setup-signing.sh" >&2
     IDENTITY="-"

@@ -2,8 +2,7 @@
 # Builds, installs into /Applications (or ~/Applications if not writable) and launches TextSnap.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="TextSnap"
+source "$(dirname "$0")/config.sh"
 
 "$ROOT/scripts/build.sh"
 
