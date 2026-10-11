@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Builds, installs into /Applications (or ~/Applications if not writable) and launches TextSnap.
+# One-step install: ensures a signing identity, builds, copies into
+# /Applications (or ~/Applications if not writable) and launches TextSnap.
+# Safe to re-run; it replaces the installed copy.
 set -euo pipefail
 
 source "$(dirname "$0")/config.sh"
 
+"$ROOT/scripts/setup-signing.sh"
 "$ROOT/scripts/build.sh"
 
 DEST="/Applications"
