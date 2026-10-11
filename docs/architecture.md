@@ -19,10 +19,10 @@ flowchart LR
     S --> R[TextRecognizing<br/>Vision OCR]
     R --> F[TextFormatter<br/>TextSnapCore]
     F --> P[PasteboardWriter]
-    C --> U[StatusItemController<br/>✓ / ⚠ feedback]
+    C --> U[StatusItemController<br/>spinner / ✓ / ⚠ feedback]
 ```
 
-`CaptureCoordinator` owns the flow and runs one capture at a time; pressing the hotkey again while a capture is in progress does nothing. Capture and recognition sit behind protocols (`ScreenCapturing`, `TextRecognizing`), so either one can be swapped or faked without touching the rest.
+`CaptureCoordinator` owns the flow and runs one capture at a time. It emits a `processing` event once the region is captured and a `finished(outcome)` event at the end, and the menu bar reflects both. Pressing the hotkey again while a capture is in progress does nothing. Capture and recognition sit behind protocols (`ScreenCapturing`, `TextRecognizing`), so either one can be swapped or faked without touching the rest.
 
 ## Layout reconstruction (`TextSnapCore`)
 
@@ -49,7 +49,7 @@ All thresholds are relative to the median line height, so the same rules work on
 | `Capture/` | `InteractiveScreenshotCapturer` (drives `/usr/sbin/screencapture -i`, so the selection UI is the system one), screen recording permission check |
 | `Recognition/` | `VisionTextRecognizer` (`RecognizeTextRequest`, accurate level, language correction, automatic language detection) |
 | `System/` | Carbon global hotkey, `SMAppService` login item, pasteboard, `UserDefaults` preferences, `os.Logger` categories |
-| `UI/` | `StatusItemController`: menu bar icon, menu, success/failure feedback |
+| `UI/` | `StatusItemController`: menu bar icon, menu, and feedback (spinner while processing, then ✓ or ⚠) |
 
 ## Performance and resource use
 
