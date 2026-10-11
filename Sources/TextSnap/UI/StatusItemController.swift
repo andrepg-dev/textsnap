@@ -5,10 +5,22 @@ import TextSnapCore
 /// the login item (which the user can change in System Settings) is always fresh.
 @MainActor
 final class StatusItemController: NSObject, NSMenuDelegate {
-    private enum Symbol {
-        static let idle = "text.viewfinder"
-        static let success = "checkmark.circle"
-        static let warning = "exclamationmark.triangle"
+    /// What the menu bar button shows. Every change goes through `display(_:)`
+    /// so the spinner and the symbol never appear at the same time.
+    private enum Indicator {
+        case idle
+        case processing
+        case success
+        case warning
+
+        var symbolName: String? {
+            switch self {
+            case .idle: "text.viewfinder"
+            case .processing: nil
+            case .success: "checkmark.circle"
+            case .warning: "exclamationmark.triangle"
+            }
+        }
     }
 
     private static let feedbackDuration: Duration = .seconds(1.2)
@@ -19,6 +31,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let onCapture: () -> Void
     private var hotKeyAvailable = true
     private var feedbackTask: Task<Void, Never>?
+    private let spinner = NSProgressIndicator()
 
     init(preferences: Preferences, loginItem: LoginItemController, onCapture: @escaping () -> Void) {
         self.preferences = preferences
@@ -26,7 +39,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         self.onCapture = onCapture
         super.init()
 
-        setIcon(Symbol.idle)
+        installSpinner()
+        display(.idle)
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -36,16 +50,27 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         hotKeyAvailable = false
     }
 
-    func show(_ outcome: CaptureCoordinator.Outcome) {
+    func show(_ event: CaptureCoordinator.Event) {
+        switch event {
+        case .processing:
+            feedbackTask?.cancel()
+            display(.processing)
+        case .finished(let outcome):
+            show(outcome)
+        }
+    }
+
+    private func show(_ outcome: CaptureCoordinator.Outcome) {
         switch outcome {
         case .copied:
-            flash(Symbol.success, sound: "Tink")
+            flash(.success, sound: "Tink")
         case .noTextFound, .failed:
-            flash(Symbol.warning, sound: "Basso")
+            flash(.warning, sound: "Basso")
         case .permissionRequired:
+            display(.idle)
             showPermissionAlert()
         case .cancelled:
-            break
+            display(.idle)
         }
     }
 
@@ -121,20 +146,42 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         return item
     }
 
-    private func setIcon(_ symbolName: String) {
-        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "TextSnap")
-        image?.isTemplate = true
-        statusItem.button?.image = image
+    /// A small native spinner centered in the button. It is hidden and does no
+    /// drawing work while stopped, so it costs nothing outside of processing.
+    private func installSpinner() {
+        guard let button = statusItem.button else { return }
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.isDisplayedWhenStopped = false
+        spinner.setAccessibilityLabel("Procesando captura")
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(spinner)
+        NSLayoutConstraint.activate([
+            spinner.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+        ])
     }
 
-    private func flash(_ symbolName: String, sound: NSSound.Name) {
+    private func display(_ indicator: Indicator) {
+        if let symbolName = indicator.symbolName {
+            spinner.stopAnimation(nil)
+            let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: "TextSnap")
+            image?.isTemplate = true
+            statusItem.button?.image = image
+        } else {
+            statusItem.button?.image = nil
+            spinner.startAnimation(nil)
+        }
+    }
+
+    private func flash(_ indicator: Indicator, sound: NSSound.Name) {
         NSSound(named: sound)?.play()
-        setIcon(symbolName)
+        display(indicator)
         feedbackTask?.cancel()
         feedbackTask = Task {
             try? await Task.sleep(for: Self.feedbackDuration)
             guard !Task.isCancelled else { return }
-            setIcon(Symbol.idle)
+            display(.idle)
         }
     }
 

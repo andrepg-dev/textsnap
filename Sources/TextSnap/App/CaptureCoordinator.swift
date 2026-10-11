@@ -13,7 +13,13 @@ final class CaptureCoordinator {
         case failed(any Error)
     }
 
-    var onOutcome: ((Outcome) -> Void)?
+    enum Event {
+        /// The region was captured and OCR is running; selection time is excluded.
+        case processing
+        case finished(Outcome)
+    }
+
+    var onEvent: ((Event) -> Void)?
 
     private let capturer: any ScreenCapturing
     private let recognizer: any TextRecognizing
@@ -40,7 +46,7 @@ final class CaptureCoordinator {
         currentTask = Task {
             let outcome = await run()
             currentTask = nil
-            onOutcome?(outcome)
+            onEvent?(.finished(outcome))
         }
     }
 
@@ -49,6 +55,7 @@ final class CaptureCoordinator {
 
         do {
             guard let image = try await capturer.captureInteractively() else { return .cancelled }
+            onEvent?(.processing)
             let lines = try await recognizer.recognizeLines(in: image)
             let format = preferences.outputFormat
             let text = formatter.format(lines, as: format)

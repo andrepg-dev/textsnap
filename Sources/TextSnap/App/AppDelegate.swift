@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             loginItem: loginItem,
             onCapture: { [weak coordinator] in coordinator?.start() }
         )
-        coordinator.onOutcome = { [weak statusItem] outcome in statusItem?.show(outcome) }
+        coordinator.onEvent = { [weak statusItem] event in statusItem?.show(event) }
 
         self.coordinator = coordinator
         self.statusItem = statusItem
