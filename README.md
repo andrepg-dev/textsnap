@@ -5,7 +5,8 @@ App nativa de barra de menú para macOS: **⌘⇧2** → seleccionas una zona (i
 ## Instalar
 
 ```bash
-./scripts/install.sh   # compila, firma, copia a /Applications y abre
+./scripts/setup-signing.sh   # una sola vez: certificado local para firmar
+./scripts/install.sh         # compila, firma, copia a /Applications y abre
 ```
 
 La primera captura pide permiso de **Grabación de pantalla**. Concédelo y vuelve a abrir TextSnap.
@@ -50,5 +51,6 @@ swift test
 
 ## Notas
 
-- Sin certificado de desarrollador la app se firma ad-hoc: si recompilas, macOS puede volver a pedir el permiso de Grabación de pantalla. Para evitarlo: `CODESIGN_IDENTITY="Apple Development: ..." ./scripts/install.sh`.
+- macOS asocia el permiso de Grabación de pantalla a la firma de la app. Una firma ad-hoc cambia en cada build y el permiso se pierde aunque el interruptor siga encendido; por eso `setup-signing.sh` crea un certificado autofirmado estable. Para usar otro: `CODESIGN_IDENTITY="Apple Development: ..." ./scripts/install.sh`.
+- Si el permiso quedó atascado: `tccutil reset ScreenCapture com.andreponce.TextSnap` y vuelve a concederlo.
 - El OCR no distingue negritas/cursivas, así que no se emiten `**...**`.
