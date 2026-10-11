@@ -32,9 +32,16 @@ struct InteractiveScreenshotCapturer: ScreenCapturing {
             if status == 0 || status == 1 { return nil }
             throw CaptureError.toolFailed(status: status)
         }
+        return try Self.decode(Data(contentsOf: file))
+    }
+
+    /// Decodes eagerly. A `CGImage` from ImageIO is lazy by default and would read
+    /// its pixels later — after the temporary file above has already been deleted.
+    private static func decode(_ data: Data) throws -> CGImage {
+        let options = [kCGImageSourceShouldCacheImmediately: true] as CFDictionary
         guard
-            let source = CGImageSourceCreateWithURL(file as CFURL, nil),
-            let image = CGImageSourceCreateImageAtIndex(source, 0, [kCGImageSourceShouldCache: false] as CFDictionary)
+            let source = CGImageSourceCreateWithData(data as CFData, nil),
+            let image = CGImageSourceCreateImageAtIndex(source, 0, options)
         else {
             throw CaptureError.unreadableImage
         }
