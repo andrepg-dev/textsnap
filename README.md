@@ -1,56 +1,156 @@
 # TextSnap
 
-App nativa de barra de menú para macOS: **⌘⇧2** → seleccionas una zona (igual que ⌘⇧4) → el texto queda en el portapapeles como **Markdown**, conservando títulos, viñetas, listas numeradas, anidación y saltos de línea.
+A native macOS menu bar app that copies **the text in any part of your screen**, keeping its structure.
 
-## Instalar
+Press **⌘⇧2**, drag over a region (same as ⌘⇧4), and the text lands on your clipboard as Markdown, with headings, bullets, numbered and nested lists, and line breaks preserved.
 
-```bash
-./scripts/setup-signing.sh   # una sola vez: certificado local para firmar
-./scripts/install.sh         # compila, firma, copia a /Applications y abre
+**Example.** Capturing a slide that has a title and eight bullet points gives you (excerpt):
+
+```markdown
+# R/W Capacity Modes - On-Demand
+
+- Read/writes automatically scale up/down with your workloads
+- No capacity planning needed (WCU / RCU)
+- You're charged for reads/writes that you use in terms of RRU and WRU
+- 2.5x more expensive than provisioned capacity (use with care)
 ```
 
-La primera captura pide permiso de **Grabación de pantalla**. Concédelo y vuelve a abrir TextSnap.
-"Abrir al iniciar sesión" se activa solo la primera vez; se puede cambiar desde el menú.
+- Runs entirely on your Mac: OCR uses Apple's Vision framework, and nothing leaves the device.
+- Zero CPU while idle, no Dock icon, starts automatically at login.
 
-## Uso
+---
 
-- **⌘⇧2**: selecciona región. **Espacio** cambia a modo ventana, **Esc** cancela.
-- Menú ⟶ *Copiar como*: Markdown (por defecto) o Texto plano.
-- Icono ✓ + sonido = copiado. Icono ⚠ = no se encontró texto.
+## Requirements
 
-## Arquitectura
+| | Minimum | Check with |
+| --- | --- | --- |
+| macOS | 15 Sequoia | `sw_vers -productVersion` |
+| Xcode | 26 (Swift 6.2) | `swift --version` |
+
+Xcode has to be the active developer directory. If `xcode-select -p` prints a `CommandLineTools` path, run:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app
+```
+
+## Install
+
+### 1. Get the code
+
+```bash
+git clone https://github.com/andrepg-dev/textsnap.git
+cd textsnap
+```
+
+### 2. Build and install
+
+```bash
+./scripts/install.sh
+```
+
+This single command:
+
+1. Creates a local code signing certificate named **TextSnap Local Signing** in your login keychain (only the first time; see [why](#why-a-signing-certificate)).
+2. Builds the app in release mode and signs it.
+3. Copies it to `/Applications` (or `~/Applications` if `/Applications` isn't writable).
+4. Launches it. A viewfinder icon appears in the menu bar.
+
+### 3. Grant Screen Recording permission (first run only)
+
+1. Press **⌘⇧2**. macOS asks for permission to record the screen.
+2. Open **System Settings › Privacy & Security › Screen & System Audio Recording** and turn on **TextSnap**.
+3. Quit and reopen TextSnap (macOS applies the permission only after a restart). Either accept macOS's **Quit & Reopen** button, or run:
+   ```bash
+   pkill -x TextSnap; open /Applications/TextSnap.app
+   ```
+
+### 4. Done
+
+Launch at login turns on automatically the first time the app runs, so TextSnap will be in your menu bar every time you log in.
+
+## Use
+
+| Action | How |
+| --- | --- |
+| Capture text | **⌘⇧2**, then drag over the text |
+| Capture a whole window | **⌘⇧2**, then **Space**, then click the window |
+| Cancel | **Esc** |
+| Paste | **⌘V** anywhere |
+
+Feedback in the menu bar:
+
+- **✓** and a short *Tink* sound: the text was copied.
+- **⚠** and a *Basso* sound: no text was found (see [troubleshooting](docs/troubleshooting.md#the-icon-flashes--and-nothing-is-copied)).
+
+## Configure
+
+Click the menu bar icon (the menu is in Spanish):
+
+| Menu item | What it does |
+| --- | --- |
+| **Capturar texto ⌘⇧2** | Starts a capture, same as the shortcut |
+| **Copiar como › Markdown** | *Default.* `# Heading`, `- bullet`, `1. item`, nested lists indented 4 spaces |
+| **Copiar como › Texto plano** | No Markdown syntax: headings as plain lines, `•` bullets |
+| **Abrir al iniciar sesión** | Toggles launch at login. A dash (–) means macOS is waiting for your approval in Login Items |
+| **Salir de TextSnap** | Quits the app (⌘Q while the menu is open) |
+
+Settings are saved automatically. To reset them:
+
+```bash
+defaults delete com.andreponce.TextSnap
+```
+
+## Update
+
+```bash
+git pull
+./scripts/install.sh
+```
+
+The signing certificate stays the same between builds, so you won't be asked for Screen Recording permission again.
+
+## Uninstall
+
+```bash
+./scripts/uninstall.sh                             # removes app, permission and settings
+./scripts/uninstall.sh --remove-signing-identity   # also deletes the local certificate
+```
+
+## Why a signing certificate?
+
+macOS stores the Screen Recording permission for the app's **code signature**. Without a developer certificate, a build gets an *ad-hoc* signature that changes on every rebuild, so macOS treats each build as a new app. The permission toggle stays on, but the app gets asked again every time. A self-signed certificate keeps the signature identical across builds.
+
+The certificate is valid only for code signing, lives only in your login keychain, and isn't trusted for anything else. To sign with your own Apple Development certificate instead:
+
+```bash
+CODESIGN_IDENTITY="Apple Development: Your Name (TEAMID)" ./scripts/install.sh
+```
+
+## Development
+
+```bash
+swift build          # debug build
+swift test           # layout and rendering tests
+./scripts/build.sh   # release .app in build/, without installing
+```
 
 ```
 Sources/
-  TextSnapCore/          Lógica pura, sin AppKit ni Vision (100% testeable)
-    Model/               TextLine (entrada OCR), Document/Block (estructura), OutputFormat
-    Layout/              RowAssembler → LayoutAnalyzer (títulos, párrafos, listas, anidación)
-    Rendering/           MarkdownRenderer, PlainTextRenderer
-  TextSnap/              Shell de macOS
-    App/                 main, AppDelegate (composition root), CaptureCoordinator (pipeline)
-    Capture/             screencapture -i (UI nativa), permiso de pantalla
-    Recognition/         Vision RecognizeTextRequest
-    System/              Hotkey Carbon, login item (SMAppService), portapapeles, preferencias
-    UI/                  Menú de la barra
+  TextSnapCore/   Pure layout logic: OCR lines → headings, paragraphs, lists → Markdown
+  TextSnap/       macOS app: hotkey, capture, Vision OCR, clipboard, menu bar, login item
+Tests/            Unit tests for TextSnapCore (Swift Testing)
+scripts/          install, build, uninstall, signing setup
+docs/             Architecture and troubleshooting
 ```
 
-Flujo: `GlobalHotKey → CaptureCoordinator → ScreenCapturing → TextRecognizing → TextFormatter → PasteboardWriter`.
-Captura y OCR van detrás de protocolos, así el pipeline se puede probar o cambiar sin tocar el resto.
+Read [docs/architecture.md](docs/architecture.md) for the design, the capture pipeline and how the layout is rebuilt.
 
-### Rendimiento
+## Known limitations
 
-- En reposo: 0% CPU. El hotkey Carbon no hace polling ni necesita permiso de Accesibilidad.
-- Sin ventanas, sin Dock, sin timers. El trabajo pesado (decodificar imagen, OCR) corre fuera del hilo principal.
-- El análisis de layout es una sola pasada lineal; todos los umbrales son relativos a la altura del texto, así funciona igual en Retina o capturas pequeñas.
+- Bold and italic aren't detected (OCR doesn't report font weight), so no `**…**` is emitted.
+- Typographic characters may come back simplified, for example an en dash `–` becomes `-`.
+- Tables come out as rows of text with their spacing preserved, not as Markdown tables.
 
-## Tests
+## Troubleshooting
 
-```bash
-swift test
-```
-
-## Notas
-
-- macOS asocia el permiso de Grabación de pantalla a la firma de la app. Una firma ad-hoc cambia en cada build y el permiso se pierde aunque el interruptor siga encendido; por eso `setup-signing.sh` crea un certificado autofirmado estable. Para usar otro: `CODESIGN_IDENTITY="Apple Development: ..." ./scripts/install.sh`.
-- Si el permiso quedó atascado: `tccutil reset ScreenCapture com.andreponce.TextSnap` y vuelve a concederlo.
-- El OCR no distingue negritas/cursivas, así que no se emiten `**...**`.
+See [docs/troubleshooting.md](docs/troubleshooting.md): permission prompts that keep coming back, a shortcut that doesn't respond, login item approval, build errors and how to read the logs.
